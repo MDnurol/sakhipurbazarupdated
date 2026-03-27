@@ -21,7 +21,15 @@ const InboxPage = () => {
     }
 
     const unreadNotifCount = notifications.filter(n => !n.read).length;
-    const unreadChatCount = chatThreads.filter(t => (t.unreadCount?.[currentUser.id] || 0) > 0).length;
+    const userIds = [
+        currentUser.id,
+        currentUser.shopId,
+        currentUser.driverId,
+        currentUser.agencyId,
+        currentUser.deliveryManId
+    ].filter(Boolean) as string[];
+
+    const unreadChatCount = chatThreads.filter(t => userIds.some(id => (t.unreadCount?.[id] || 0) > 0)).length;
 
     const handleNotificationClick = (notification: Notification) => {
         markNotificationAsRead(notification.id);
@@ -40,7 +48,7 @@ const InboxPage = () => {
         }
     };
 
-    const myThreads = chatThreads.filter(t => t.participantIds.includes(currentUser.id));
+    const myThreads = chatThreads.filter(t => t.participantIds.some(id => userIds.includes(id)));
 
     return (
         <div className="bg-gray-50 dark:bg-slate-900 min-h-screen pb-20">
@@ -135,7 +143,7 @@ const InboxPage = () => {
                     <div className="space-y-3">
                         {myThreads.length > 0 ? myThreads.map(thread => {
                             const isSupport = thread.contextType === 'support';
-                            const otherId = thread.participantIds.find(id => id !== currentUser.id);
+                            const otherId = thread.participantIds.find(id => !userIds.includes(id));
                             const otherUser = users.find(u => u.id === otherId);
                             const vendorId = otherUser?.shopId || otherUser?.driverId || thread.vendorId;
                             const vendor = vendorId ? vendors.find(v => v.id === vendorId) : null;
@@ -145,7 +153,10 @@ const InboxPage = () => {
                                 : vendor ? vendor.name[language] : otherUser?.name || "Unknown";
 
                             const image = isSupport ? null : (vendor ? vendor.logo : otherUser?.image);
-                            const isUnread = (thread.unreadCount?.[currentUser.id] || 0) > 0;
+                            
+                            // Check unread count across all potential IDs for the user
+                            const unreadForThread = userIds.reduce((sum, id) => sum + (thread.unreadCount?.[id] || 0), 0);
+                            const isUnread = unreadForThread > 0;
                             const subject = thread.metadata?.subject || thread.subject;
 
                             return (
@@ -166,7 +177,7 @@ const InboxPage = () => {
                                             <img src={image} alt={name} className="w-12 h-12 rounded-full border border-gray-100 dark:border-slate-700 object-cover" />
                                         )}
                                         {isUnread && <div className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-800">
-                                            {thread.unreadCount![currentUser.id]}
+                                            {unreadForThread}
                                         </div>}
                                     </div>
                                     <div className="flex-grow min-w-0">

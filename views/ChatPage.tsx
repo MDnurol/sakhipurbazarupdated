@@ -86,10 +86,22 @@ const ChatPage: React.FC = () => {
 
     // Mark as read when viewing
     useEffect(() => {
-        if (threadId && currentUser?.id && (thread?.unreadCount?.[currentUser.id] || 0) > 0) {
-            ChatService.markAsRead(threadId, currentUser.id);
-        }
-    }, [threadId, currentUser?.id, thread?.unreadCount]);
+        if (!threadId || !currentUser) return;
+        
+        const userIds = [
+            currentUser.id,
+            currentUser.shopId,
+            currentUser.driverId,
+            currentUser.agencyId,
+            currentUser.deliveryManId
+        ].filter(Boolean) as string[];
+
+        userIds.forEach(id => {
+            if ((thread?.unreadCount?.[id] || 0) > 0) {
+                ChatService.markAsRead(threadId, id);
+            }
+        });
+    }, [threadId, currentUser, thread?.unreadCount]);
 
     // Fetch Quick Replies
     useEffect(() => {

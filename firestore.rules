@@ -315,26 +315,36 @@ service cloud.firestore {
     }
 
     // 10. NOTIFICATIONS
-    match /notifications/{notificationId} {
-      // Anyone authenticated can create a notification (e.g. for vendors/riders)
+    // 10. NOTIFICATIONS (User Subcollection)
+    match /users/{userId}/notifications/{notificationId} {
       allow create: if isAuthenticated();
       
-      // Users can read notifications targeted to them or their associated IDs
       allow read: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || 
-        resource.data.userId == getUserData().shopId ||
-        resource.data.userId == getUserData().driverId ||
-        resource.data.userId == getUserData().deliveryManId ||
-        resource.data.userId == getUserData().agencyId ||
-        hasPermission('users.view')
+        isOwner(userId) || 
+        getUserData().shopId == userId ||
+        getUserData().driverId == userId ||
+        getUserData().deliveryManId == userId ||
+        getUserData().agencyId == userId ||
+        hasPermission('notifications.view')
       );
       
-      // Users can update (mark as read) their own notifications
       allow update: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || 
-        resource.data.userId == getUserData().shopId ||
-        hasPermission('users.edit')
+        isOwner(userId) || 
+        hasPermission('notifications.manage')
+      ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      
+      allow delete: if isAuthenticated() && (
+        isOwner(userId) || 
+        hasPermission('notifications.manage')
       );
+    }
+
+    // Legacy/Global Notifications (if needed for broadcast)
+    match /notifications/{notificationId} {
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow update: if hasPermission('notifications.manage');
+      allow delete: if hasPermission('notifications.manage');
     }
 
     // 11. SYSTEM LOGS (Audit Trail)

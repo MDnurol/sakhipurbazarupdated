@@ -13,6 +13,8 @@ interface ChatContextType {
     markAllNotificationsAsRead: () => Promise<void>;
     sendAttachment: (threadId: string, file: File | Blob, type: 'image' | 'file') => Promise<void>;
     startSupportChat: (subject: string) => Promise<string>;
+    markAsRead: (threadId: string) => Promise<void>;
+    markAllMessagesAsRead: () => Promise<void>;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -21,15 +23,24 @@ export const ChatProvider: React.FC<{ currentUser: User | null; children: React.
     const [chatThreads, setChatThreads] = useState<ChatThread[]>([]);
     const [notifications, setNotifications] = useState<Notification[]>([]);
 
+    const userIds = currentUser ? [
+        currentUser.id,
+        currentUser.shopId,
+        currentUser.driverId,
+        currentUser.agencyId,
+        currentUser.deliveryManId,
+        currentUser.id.replace('AU-', ''), 
+    ].filter(Boolean) as string[] : [];
+
     useEffect(() => {
         if (!currentUser) return;
-        const unsubThreads = ChatService.subscribeToUserThreads(currentUser.id, setChatThreads);
+        const unsubThreads = ChatService.subscribeToUserThreads(userIds, setChatThreads);
         const qNotif = query(collection(db, `users/${currentUser.id}/notifications`), orderBy('date', 'desc'), limit(50));
         const unsubNotifs = onSnapshot(qNotif, (snap) => {
             setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() } as Notification)));
         });
         return () => { unsubThreads(); unsubNotifs(); };
-    }, [currentUser]);
+    }, [currentUser, JSON.stringify(userIds)]);
 
     const sendMessage = async (threadId: string, text: string) => {
         if (currentUser) await ChatService.sendMessage(threadId, currentUser.id, text);
@@ -68,8 +79,23 @@ export const ChatProvider: React.FC<{ currentUser: User | null; children: React.
         return '';
     };
 
+    const markAsRead = async (threadId: string) => {
+        if (!currentUser) return;
+        await Promise.all(userIds.map(id => ChatService.markAsRead(threadId, id)));
+    };
+
+    const markAllMessagesAsRead = async () => {
+        if (!currentUser) return;
+        const threadsToMark = chatThreads.filter(t => userIds.some(id => (t.unreadCount?.[id] || 0) > 0));
+        await Promise.all(threadsToMark.map(t => markAsRead(t.id)));
+    };
+
     return (
-        <ChatContext.Provider value={{ chatThreads, notifications, sendMessage, startChat, markNotificationAsRead, markAllNotificationsAsRead, sendAttachment, startSupportChat }}>
+        <ChatContext.Provider value={{
+            chatThreads, notifications, sendMessage, startChat, markNotificationAsRead,
+            markAllNotificationsAsRead, sendAttachment, startSupportChat,
+            markAsRead, markAllMessagesAsRead
+        }}>
             {children}
         </ChatContext.Provider>
     );

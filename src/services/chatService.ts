@@ -4,11 +4,19 @@ import { ChatThread, ChatMessage } from '../../types';
 import { ImageService } from './imageService';
 
 export const ChatService = {
-    // Subscribe to chat threads for a specific user
-    subscribeToUserThreads: (userId: string, callback: (threads: ChatThread[]) => void) => {
+    /**
+     * Subscribe to all threads where current user is a participant.
+     * Supports multiple IDs for users with roles (Vendor, Driver, Agency).
+     */
+    subscribeToUserThreads: (userIds: string[], callback: (threads: ChatThread[]) => void) => {
+        if (!userIds || userIds.length === 0) return () => { };
+
+        // Firestore supports up to 10 items in array-contains-any
+        const queryIds = userIds.slice(0, 10);
+
         const q = query(
             collection(db, 'chats'),
-            where('participantIds', 'array-contains', userId)
+            where('participantIds', 'array-contains-any', queryIds)
         );
 
         return onSnapshot(q, (snapshot) => {

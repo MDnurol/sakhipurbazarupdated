@@ -51,9 +51,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             processPromotionBudgets: () => promotions.processPromotionBudgets(),
             generateReferralCode: () => '',
             markAllMessagesAsRead: async () => {
-                if (!auth.currentUser) return;
-                const threadsToMark = chat.chatThreads.filter(t => (t.unreadCount?.[auth.currentUser!.uid] || 0) > 0);
-                await Promise.all(threadsToMark.map(t => chat.markAsRead(t.id)));
+                await chat.markAllMessagesAsRead();
             },
             createNotification: async (data: any) => {
                 const { createNotification } = await import('../services/notificationService');
