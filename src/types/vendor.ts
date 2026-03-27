@@ -22,6 +22,7 @@ export interface Vendor {
     agencyLicense?: string;
     walletBalance: number;
     pendingBalance: number;
+    totalWithdrawn?: number;
     serviceMode?: 'ride' | 'delivery' | 'both';
     deliveryManProfile?: {
         isAvailable: boolean;
